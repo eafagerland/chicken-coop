@@ -1,0 +1,38 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${vcpkgRoot}/x86-windows/include",
+                "D:/Depelopment/01.Tools/Arduino/hardware/arduino/avr/cores/arduino",
+                "D:/Depelopment/01.Tools/Arduino/hardware/tools/avr/avr/include",
+                "D:/Depelopment/01.Tools/Arduino/hardware/arduino/avr/variants/standard",
+                "C:/Users/Erik/AppData/Local/arduino15/packages/esp32/tools/esp32-arduino-libs/idf-release_v5.3-466a392a/esp32c6/include/esp_hw_support/include",
+                "C:/Users/Erik/AppData/Local/arduino15/packages/esp32/tools/esp32-arduino-libs/idf-release_v5.3-466a392a/esp32c6/include/bt/porting/npl/freertos/include/nimble",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include\\freertos\\FreeRTOS-Kernel\\include\\freertos",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\dio_qspi\\include",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include\\freertos\\FreeRTOS-Kernel\\portable\\riscv\\include\\freertos",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include\\freertos\\config\\riscv\\include",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include\\freertos\\config\\include\\freertos",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include\\freertos\\config\\include",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include\\esp_hw_support\\include",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include\\soc\\esp32c6\\include",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include\\esp_common\\include",
+                "C:\\Users\\Erik\\AppData\\Local\\arduino15\\packages\\esp32\\tools\\esp32-arduino-libs\\idf-release_v5.3-466a392a\\esp32c6\\include\\riscv\\include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22621.0",
+            "compilerPath": "cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}
