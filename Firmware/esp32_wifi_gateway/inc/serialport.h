@@ -19,34 +19,36 @@
 namespace SerialportTaskConfig
 {
 
-    /** @brief The stack size of the FreeRTOS application core in bytes.  */
-    constexpr auto stackSize = (2048UL);
+/** @brief The stack size of the serialport FreeRTOS task in bytes.  */
+constexpr auto stackSize = (2048UL);
 
-    /** @brief The maximum number of received strings in queue. */
-    constexpr auto queueMaxEntries = (10U);
+/** @brief The maximum number of received strings in queue. */
+constexpr auto queueMaxEntries = (10U);
 
-    /** @brief The maximum number of bytes received in one messagge. */
-    constexpr auto readBufferSize = (128U);
+/** @brief The maximum number of bytes received in one messagge. */
+constexpr auto readBufferSize = (128U);
 
-    /** @brief  The maximum amount of ticks before serial read operation times out. */
-    constexpr auto readTimeout = (100UL);
+/** @brief  The maximum amount of ticks before serial read operation times out. */
+constexpr auto readTimeout = (100UL);
 
-    /** @brief The time in milliseconds before timing out on receive queue operations. */
-    constexpr auto receiveQueueTimeout = (100UL);
+/** @brief The time in milliseconds before timing out on receive queue operations. */
+constexpr auto receiveQueueTimeout = (100UL);
 
-    /** @brief The number of ticks to wait on serialport starting before timing out. */
-    constexpr auto waitForSerialportStartTimeout = (1000U);
+/** @brief The number of ticks to wait on serialport starting before timing out. */
+constexpr auto waitForSerialportStartTimeout = (1000U);
 
-    /** @brief The notification array index of the initialization value. */
-    constexpr auto initNotificationArrayIndex = (0U);
+/** @brief The notification array index of the initialization value. */
+constexpr auto initNotificationArrayIndex = (0U);
 
-    /** @brief The number of ticks to wait for serialport task to start running. */
-    constexpr auto waitForserialportTaskStartTimeout = (1000U);
+/** @brief The number of ticks to wait for serialport task to start running. */
+constexpr auto waitForSerialportTaskStartTimeout = (1000U);
 
-}
+} // namespace SerialportTaskConfig
 
-/** @brief Holds the different statuses of the serial operations. */
-enum class SerialResult
+/**
+ * @brief Represents the different outcomes of the serialport operations.
+ */
+enum class SerialportResult
 {
 
     /** @brief Indicates that the operation was successful. */
@@ -81,6 +83,16 @@ enum class SerialResult
 
     /** @brief Indicates that the serialport task failed to start. */
     TaskStartFailedError,
+
+    /** @brief Indicates that the serialport was attempted to be initalized when it already was. */
+    AlreadyInitializedError,
+
+    /** @brief Indicates that the task handle was NULL. */
+    TaskHandleNullError,
+
+    /** @brief Indicates that the queue handle was NULL. */
+    QueueHandleNullError,
+
 };
 
 /**
@@ -173,24 +185,40 @@ public:
      *  When creating the task it will block until the notification that
      *  the initialization is complete.
      * 
-     *  @retval SerialResult::Success,
+     *  @retval SerialportResult::Success,
      *   If the operation was successful.
-     *  @retval SerialResult::TaskCreationFailed
+     *  @retval SerialportResult::TaskCreationFailed
      *   If the task creation failed.
-     *  @retval SerialResult::QueueCreationFailedError
+     *  @retval SerialportResult::QueueCreationFailedError
      *   If the receive queue creation failed.
-     *  @retval SerialResult::SerialportStartTimeoutError
+     *  @retval SerialportResult::SerialportStartTimeoutError
      *   If the serialport instance was unable to start before timing out.
-     *  @retval SerialResult::TaskStartFailedError
+     *  @retval SerialportResult::TaskStartFailedError
      *   If the serialport task failed to start and operation timed out.
      */
-    SerialResult init(
+    SerialportResult init(
         UBaseType_t taskPriority,
         const char * const taskName,
         HardwareSerial *serialHandle,
         const SerialportPinConfig pinConfig,
         const uint32_t baudrate
     );
+
+    /**
+     * @brief Attempts to delete the task.
+     * 
+     * @remarks
+     *  If the task is not responding as expected the task can be
+     *  tried to be restarted by deleting and calling @ref init again.
+     * 
+     * @retval SerialportResult::Success
+     *  If the operation was successful.
+     * @retval SerialportResult::InitializationError
+     *  If the serialport was not initialized.
+     * @retval SerialportResult::TaskHandleNullError
+     *  If the serialport task handle was NULL.
+     */
+    SerialportResult deleteTask();
 
     /**
      * @brief Attempts to retreive the first item in the serialport receive queue.
@@ -202,16 +230,16 @@ public:
      * @param[out] data The serial received data that is retreived from the queue.
      * @param[in] timeout The maximum time in millisecond for attempting to get queue item before timeout.
      * 
-     * @retval SerialResult::Success
+     * @retval SerialportResult::Success
      *  If the operation was successful.
-     * @retval SerialResult::InitializationError
+     * @retval SerialportResult::InitializationError
      *  If the operation failed due to serialport not being initialized.
-     * @retval SerialResult::ReceiveQueueTimeoutError
+     * @retval SerialportResult::ReceiveQueueTimeoutError
      *  If the receive queue operation timed out before able to retreive data.
      * @retval SerialResut::ArgumentNullError
      *  If the passed data argument was nullptr.
      */
-    SerialResult frontReceiveQueueItem(SerialReceiveData *data, const uint32_t timeout);
+    SerialportResult frontReceiveQueueItem(SerialReceiveData *data, const uint32_t timeout);
 
     /**
      * @brief Converts the result code into a string.
@@ -224,7 +252,7 @@ public:
      * @returns
      *  The string that best matches the provided code.
      */
-    static const char *resultCodeToString(const SerialResult code);
+    static const char *resultCodeToString(const SerialportResult code);
 
 protected:
 
@@ -254,16 +282,16 @@ private:
      * 
      * @param[out] bytesRead The number of bytes that were read.
      * 
-     * @retval SerialResult::Success
+     * @retval SerialportResult::Success
      *  If the operation was successful.
-     * @retval SerialResult::ReadTimeoutError
+     * @retval SerialportResult::ReadTimeoutError
      *  If the read operation timed out.
-     * @retval SerialResult::ReceiveBufferOverflowError
+     * @retval SerialportResult::ReceiveBufferOverflowError
      *  If the read buffer encountered an overflow.
-     * @retval SerialResult::ReceiveQueueFullError
+     * @retval SerialportResult::ReceiveQueueFullError
      *  If the receive queue was full and read data could not be added.
      */
-    SerialResult serialRead(uint16_t &bytesRead);
+    SerialportResult serialRead(uint16_t &bytesRead);
 
     /**
      * @brief Holds the static queue that is used for received data on the serialport.

@@ -37,7 +37,12 @@
 // Declare the application core task.
 ApplicationCore app;
 
-void hardfaultHandler(const TaskResult code)
+/**
+ * @brief A hardfault handler, infinite loop.
+ * 
+ * @param[in] code The error that occured when handler was called.
+ */
+static void hardfaultHandler(const TaskResult code)
 {
     // Prevent unused warning.
     (void)code;

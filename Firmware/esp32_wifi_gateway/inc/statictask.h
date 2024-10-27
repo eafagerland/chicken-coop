@@ -93,13 +93,14 @@ protected:
      */
     TaskResult createTask(UBaseType_t priority, const char * const name)
     {
+        // Initialize the init flag.
         m_isInitialized = false;
 
-        // Store the task handle.
-        TaskHandle_t xHandle = NULL;
+        // Initialize the task handle.
+        m_taskHandle = NULL;
 
         // Attempt to create the core task.
-        xHandle = xTaskCreateStatic(
+        m_taskHandle = xTaskCreateStatic(
             taskInit,       // The task function.
             name,           // The task name.
             StackSize,      // The stack size of the task.
@@ -110,7 +111,7 @@ protected:
         );
 
         // Return error if unable to create task.
-        if (xHandle == NULL)
+        if (m_taskHandle == NULL)
         {
             return TaskResult::TaskCreationError;
         }
@@ -128,19 +129,22 @@ protected:
     */
     virtual void run() = 0;
 
+    /** @brief Stores the initialization flag for the task. */
     bool m_isInitialized;
 
-private:
+    /** @brief Stores the task handle for the task. */
+    TaskHandle_t m_taskHandle;
 
     /**
-     * @brief Structure that will hold the TCB of the task being created.
-     */
-    StaticTask_t xTaskBuffer;
-
-    /**
-     * @brief Holds the buffer for the stack being created.
+    * @brief Clears the stack and TCB memory bufers.
     */
-    StackType_t xStack[StackSize];
+    void clearMemory()
+    {
+        memset(xStack, 0, sizeof(xStack));
+        memset(&xTaskBuffer, 0, sizeof(xTaskBuffer));
+    }
+
+private:
 
     /**
      * @brief Function for initializing the task.
@@ -162,6 +166,12 @@ private:
         // Start the task.
         task->run();
     }
+
+    /** @brief Structure that will hold the TCB of the task being created. */
+    StaticTask_t xTaskBuffer;
+
+    /** @brief Holds the buffer for the stack being created. */
+    StackType_t xStack[StackSize];
 
 public:
 

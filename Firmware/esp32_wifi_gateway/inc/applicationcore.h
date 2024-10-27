@@ -11,7 +11,6 @@
 #define APPLICATIONCORE_H_
 
 // Project headers.
-#include "inc/statictask.h"
 #include "inc/serialport.h"
 
 /**
@@ -25,6 +24,11 @@ public:
     /**
      * @brief Initializes the core application task.
      * 
+     * @remarks
+     *  All tasks for the application will be created.
+     *  Status of each operation is returned, if any tasks
+     *  failed to be created the hardfaultHandler should be called.
+     * 
      * @retval TaskResult::Success
      *  If the initialization was successful.
      * @retval TaskResult::TaskCreationError
@@ -33,6 +37,11 @@ public:
     TaskResult init();
 
 private:
+
+    /**
+     * @brief Initalizes the Stm32 serialport.
+     */
+    SerialportResult initStm32Serialport();
 
     /**
      * @brief

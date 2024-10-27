@@ -11,7 +11,7 @@
 #include "inc/serialport.h"
 
 // Project headers.
-#include "inc/debug_utils.h"
+#include "inc/debug/debugutils.h"
 
 /**
  * @brief Initializes the serialport task.
@@ -27,25 +27,30 @@
  *  When creating the task it will block until the notification that
  *  the initialization is complete.
  * 
- *  @retval SerialResult::Success,
+ *  @retval SerialportResult::Success,
  *   If the operation was successful.
- *  @retval SerialResult::TaskCreationFailed
+ *  @retval SerialportResult::TaskCreationFailed
  *   If the task creation failed.
- *  @retval SerialResult::QueueCreationFailedError
+ *  @retval SerialportResult::QueueCreationFailedError
  *   If the receive queue creation failed.
- *  @retval SerialResult::SerialportStartTimeoutError
+ *  @retval SerialportResult::SerialportStartTimeoutError
  *   If the serialport instance was unable to start before timing out.
- *  @retval SerialResult::TaskStartFailedError
+ *  @retval SerialportResult::TaskStartFailedError
  *   If the serialport task failed to start and operation timed out.
  */
-SerialResult Serialport::init(
+SerialportResult Serialport::init(
     UBaseType_t taskPriority,
     const char * const taskName,
     HardwareSerial *serialHandle,
     const SerialportPinConfig pinConfig,
-    const uint32_t baudrate
-    )
+    const uint32_t baudrate)
 {
+    // Prevent the initialization to be run several times.
+    if (m_isInitialized)
+    {
+        return SerialportResult::AlreadyInitializedError;
+    }
+
     // Set the serial handle for this instance.
     m_serialHandle = serialHandle;
 
@@ -67,7 +72,7 @@ SerialResult Serialport::init(
     // Check if the task was created successfully.
     if (taskResult != TaskResult::Success)
     { 
-        return SerialResult::TaskCreationFailedError;
+        return SerialportResult::TaskCreationFailedError;
     }
 
     // Create the receive queue.
@@ -80,7 +85,7 @@ SerialResult Serialport::init(
     // Check if the queue creation was successfull.
     if (m_receiveQueue.handle == NULL)
     {
-        return SerialResult::QueueCreationFailedError;
+        return SerialportResult::QueueCreationFailedError;
     }
 
     // Get the current tick when serial is started.
@@ -95,7 +100,7 @@ SerialResult Serialport::init(
         // If serialport doesnt start before timing out it will return error.
         if (xTaskGetTickCount() - timeoutTickCount > SerialportTaskConfig::waitForSerialportStartTimeout)
         {
-            return SerialResult::SerialportStartTimeoutError;
+            return SerialportResult::SerialportStartTimeoutError;
         }
     }
 
@@ -108,10 +113,11 @@ SerialResult Serialport::init(
     // Wait for task to start running.
     while (xTaskToNotify == NULL)
     {
-        if (xTaskGetTickCount() - timeoutTickCount > SerialportTaskConfig::waitForserialportTaskStartTimeout)
+        if (xTaskGetTickCount() - timeoutTickCount > SerialportTaskConfig::waitForSerialportTaskStartTimeout)
         {
             // The serialport never started and operation timed out.
-            return SerialResult::TaskStartFailedError;
+            m_isInitialized = false;
+            return SerialportResult::TaskStartFailedError;
         }
     }
 
@@ -119,7 +125,39 @@ SerialResult Serialport::init(
     xTaskNotifyGiveIndexed(xTaskToNotify, SerialportTaskConfig::initNotificationArrayIndex);
 
     // Return the result of the serialport initialization.
-    return SerialResult::Success;
+    return SerialportResult::Success;
+}
+
+SerialportResult Serialport::deleteTask()
+{
+    // Check that the task was initialized shutting it down.
+    if (!m_isInitialized)
+    {
+        return SerialportResult::InitializationError;
+    }
+    // Check that the task handle is valid.
+    else if (m_taskHandle == NULL)
+    {
+        return SerialportResult::TaskHandleNullError;
+    }
+    else if (m_receiveQueue.handle == NULL)
+    {
+        return SerialportResult::QueueHandleNullError;
+    }
+
+    // Delete the task.
+    vTaskDelete(m_taskHandle);
+
+    // Clear the Stack and TCB memory.
+    clearMemory();
+
+    // Delete the queue.
+    vQueueDelete(m_receiveQueue.handle);
+
+    // Reset the init flag.
+    m_isInitialized = false;
+
+    return SerialportResult::Success;
 }
 
 /**
@@ -151,29 +189,28 @@ void Serialport::run()
         uint16_t bytesRead = 0;
 
         // Check if data available on the serialport.
-        SerialResult readResult = serialRead(bytesRead);
+        SerialportResult readResult = serialRead(bytesRead);
 
         // Print the result of the read operation if not successful.
-        if (readResult != SerialResult::Success)
+        if (readResult != SerialportResult::Success)
         {
-            logln(resultCodeToString(readResult));
+            Debug::out << "Failed to read serialport: " << resultCodeToString(readResult) << Debug::endl;
         }
 
         // For testing serial receive:
         // Data is sent manually with terminal connected to dev board.
         SerialReceiveData data;
-        SerialResult queueResult = frontReceiveQueueItem(&data, 100);
-        if (queueResult != SerialResult::Success && queueResult != SerialResult::ReceiveQueueTimeoutError)
+        SerialportResult queueResult = frontReceiveQueueItem(&data, 100);
+        if (queueResult != SerialportResult::Success && queueResult != SerialportResult::ReceiveQueueTimeoutError)
         {
-            logln(resultCodeToString(queueResult));
+            Debug::out << "Failed to receive from queue: " << resultCodeToString(queueResult) << Debug::endl;
         }
         else
         {
             // Print the number of bytes received.
             if (data.length != 0)
             {
-                log("Received Bytes: ");
-                logln(data.length);
+                Debug::out << "Received bytes: " << data.length << Debug::endl;
             }
         }
     } // while
@@ -190,16 +227,16 @@ void Serialport::run()
  * 
  * @param[out] bytesRead The number of bytes that were read.
  * 
- * @retval SerialResult::Success
+ * @retval SerialportResult::Success
  *  If the operation was successful.
- * @retval SerialResult::ReadTimeoutError
+ * @retval SerialportResult::ReadTimeoutError
  *  If the read operation timed out.
- * @retval SerialResult::ReceiveBufferOverflowError
+ * @retval SerialportResult::ReceiveBufferOverflowError
  *  If the read buffer encountered an overflow.
- * @retval SerialResult::ReceiveQueueFullError
+ * @retval SerialportResult::ReceiveQueueFullError
  *  If the receive queue was full and read data could not be added.
  */
-SerialResult Serialport::serialRead(uint16_t &bytesRead)
+SerialportResult Serialport::serialRead(uint16_t &bytesRead)
 {
     // Initalize the bytes read output to 0.
     bytesRead = 0;
@@ -220,7 +257,7 @@ SerialResult Serialport::serialRead(uint16_t &bytesRead)
         uint32_t currentTick = xTaskGetTickCount();
         if (currentTick - readStartTick > SerialportTaskConfig::readTimeout)
         {
-            return SerialResult::ReadTimeoutError;
+            return SerialportResult::ReadTimeoutError;
         }
 
         // Store the byte into buffer at current index.
@@ -232,7 +269,7 @@ SerialResult Serialport::serialRead(uint16_t &bytesRead)
         // Check for overflow.
         if (serialReadBytes == SerialportTaskConfig::readBufferSize)
         {
-            return SerialResult::ReceiveBufferOverflowError;
+            return SerialportResult::ReceiveBufferOverflowError;
         }
     }
 
@@ -240,7 +277,7 @@ SerialResult Serialport::serialRead(uint16_t &bytesRead)
     if (serialReadBytes < 1)
     {
         // No data available on serialport.
-        return SerialResult::Success;
+        return SerialportResult::Success;
     }
 
     // Create data structure of the received string.
@@ -252,13 +289,13 @@ SerialResult Serialport::serialRead(uint16_t &bytesRead)
     BaseType_t queueResult = xQueueSend(m_receiveQueue.handle, (void*)&receivedData, SerialportTaskConfig::receiveQueueTimeout);
     if (queueResult != pdTRUE)
     {
-        return SerialResult::ReceiveQueueFullError;
+        return SerialportResult::ReceiveQueueFullError;
     }
 
     // Set the bytes read output.
     bytesRead = serialReadBytes;
 
-    return SerialResult::Success;
+    return SerialportResult::Success;
 }
 
 /**
@@ -271,27 +308,27 @@ SerialResult Serialport::serialRead(uint16_t &bytesRead)
  * @param[out] data The serial received data that is retreived from the queue.
  * @param[in] timeout The maximum time in millisecond for attempting to get queue item before timeout.
  * 
- * @retval SerialResult::Success
+ * @retval SerialportResult::Success
  *  If the operation was successful.
- * @retval SerialResult::InitializationError
+ * @retval SerialportResult::InitializationError
  *  If the operation failed due to serialport not being initialized.
- * @retval SerialResult::ReceiveQueueTimeoutError
+ * @retval SerialportResult::ReceiveQueueTimeoutError
  *  If the receive queue operation timed out before able to retreive data.
  * @retval SerialResut::ArgumentNullError
  *  If the passed data argument was nullptr.
  */
-SerialResult Serialport::frontReceiveQueueItem(SerialReceiveData *data, const uint32_t timeout)
+SerialportResult Serialport::frontReceiveQueueItem(SerialReceiveData *data, const uint32_t timeout)
 {
     // Sanity check the data input.
     if (data == nullptr)
     {
-        return SerialResult::ArgumentNullError;
+        return SerialportResult::ArgumentNullError;
     }
 
     // Check that the serialport is initialized.
     if (!m_isInitialized)
     {
-        return SerialResult::InitializationError;
+        return SerialportResult::InitializationError;
     }
 
     // Attempt to receive item from queue.
@@ -299,10 +336,10 @@ SerialResult Serialport::frontReceiveQueueItem(SerialReceiveData *data, const ui
 
     if (queueResult == pdTRUE)
     { 
-        return SerialResult::Success;
+        return SerialportResult::Success;
     }
 
-    return SerialResult::ReceiveQueueTimeoutError;
+    return SerialportResult::ReceiveQueueTimeoutError;
 }
 
 /**
@@ -316,18 +353,21 @@ SerialResult Serialport::frontReceiveQueueItem(SerialReceiveData *data, const ui
  * @returns
  *  The string that best matches the provided code.
  */
-const char* Serialport::resultCodeToString(const SerialResult code) 
+const char* Serialport::resultCodeToString(const SerialportResult code) 
 {
-    static const std::unordered_map<SerialResult, const char*> resultMap = 
+    static const std::unordered_map<SerialportResult, const char*> resultMap = 
     {
-        { SerialResult::Success, "The serialport operation was successful!" },
-        { SerialResult::ReceiveBufferOverflowError, "The serialports receive buffer encountered an overflow!" },
-        { SerialResult::ReceiveQueueTimeoutError, "The serialports receive queue operation timed out!" },
-        { SerialResult::ReceiveQueueFullError, "The serialports receive queue was full!" },
-        { SerialResult::ReadTimeoutError, "The serialport read operation timed out!" },
-        { SerialResult::ArgumentNullError, "The serialport operation failed due to a nullptr being passed as an argument!" },
-        { SerialResult::InitializationError, "The serialport operation failed due to not being initialized!" },
-        { SerialResult::TaskStartFailedError, "The serialport operation failed due starting of task timed out!"}
+        { SerialportResult::Success, "The serialport operation was successful!" },
+        { SerialportResult::ReceiveBufferOverflowError, "The serialports receive buffer encountered an overflow!" },
+        { SerialportResult::ReceiveQueueTimeoutError, "The serialports receive queue operation timed out!" },
+        { SerialportResult::ReceiveQueueFullError, "The serialports receive queue was full!" },
+        { SerialportResult::ReadTimeoutError, "The serialport read operation timed out!" },
+        { SerialportResult::ArgumentNullError, "The serialport operation failed due to a nullptr being passed as an argument!" },
+        { SerialportResult::InitializationError, "The serialport operation failed due to not being initialized!" },
+        { SerialportResult::TaskStartFailedError, "The serialport operation failed due starting of task timed out!"},
+        { SerialportResult::AlreadyInitializedError, "The serialport init operation failed because it was already initialzied!"},
+        { SerialportResult::TaskHandleNullError, "The serialport operation failed beacuse the task handle was NULL!"},
+        { SerialportResult::QueueHandleNullError, "The serialport operation failed because the receive queue handle was NULL!"}
     };
 
     auto it = resultMap.find(code);
