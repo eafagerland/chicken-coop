@@ -55,6 +55,8 @@ TaskResult ApplicationCore::init()
         return TaskResult::InitializationError;
     }
 
+    Debug::out << "Application Core started successfully!";
+
     // All tasks were created successfully.
     return TaskResult::Success;
 }

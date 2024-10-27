@@ -71,6 +71,12 @@ SerialportResult Debug::DebugSerialTask::init(
     const char * const taskName,
     const SerialportInstanceConfig instanceConfig)
 {
+    // Prevent from running init again.
+    if (m_isInitialized)
+    {
+        return SerialportResult::AlreadyInitializedError;
+    }
+
     // Holds the result of the operation.
     SerialportResult result;
 
