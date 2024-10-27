@@ -1,5 +1,5 @@
-#ifndef APPLICATIONCONFIG_H_
-#define APPLICATIONCONFIG_H_
+#ifndef APPLICATION_CONFIG_H_
+#define APPLICATION_CONFIG_H_
 
 // Third part headers.
 #include <Arduino.h>
@@ -10,6 +10,9 @@
 namespace Stm32SerialportTaskConfig 
 {
 
+/** @brief The stacksize of the STM32 serialport task. */
+constexpr uint32_t stackSize = 2048UL;
+
 /** @brief The priority of the STM32 serialport task. */
 constexpr auto taskPriority = 1;
 
@@ -17,7 +20,7 @@ constexpr auto taskPriority = 1;
 constexpr const char* taskName = "serialTask";
 
 /** @brief The ESP32 serial handle to be used to communicate with the Stm32. */
-constexpr HardwareSerial& serialHandle = Serial1;
+static constexpr HardwareSerial& serialHandle = Serial1;
 
 /** @brief The UART receive pin used on the ESP32 that is connected to the STM32. */
 constexpr uint8_t rxPin = 4;
@@ -30,4 +33,4 @@ constexpr unsigned long baudRate = 115200;
 
 } // namespace Stm32SerialportTaskConfig
 
-#endif // APPLICATIONCONFIG_H_
+#endif // APPLICATION_CONFIG_H_

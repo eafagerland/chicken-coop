@@ -32,7 +32,7 @@
  */
 
 // Third party headers.
-#include "inc/applicationcore.h"
+#include "inc/application_core.h"
 
 // Declare the application core task.
 ApplicationCore app;

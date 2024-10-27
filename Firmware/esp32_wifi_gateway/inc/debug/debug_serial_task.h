@@ -1,5 +1,5 @@
 /**
- * @file debugserialtask.h
+ * @file debug_serial_task.h
  *
  * @date Okt 26, 2024
  * @author Erik Fagerland
@@ -21,8 +21,8 @@
  * providing robust debugging capabilities.
  */
 
-#ifndef DEBUGSERIAL_H_
-#define DEBUGSERIAL_H_
+#ifndef DEBUG_SERIAL_H_
+#define DEBUG_SERIAL_H_
 
 // Uncomment the following line for debug mode (comment for release).
 #define DEBUG
@@ -32,43 +32,14 @@
 #include <sstream>
 
 // Project headers.
-#include "inc/statictask.h"
-#include "inc/Debug/debugconfig.h"
+#include "inc/serialport_task.h"
+#include "inc/Debug/debug_config.h"
 
 // Third party header.
 #include <Arduino.h>
 
 namespace Debug
 {
-
-/**
- * @brief Represents the different outcomes of the debug serial task operations.
- */
-enum class DebugSerialTaskResult
-{
-
-    /** @brief Indicates that the operation was successful. */
-    Success,
-
-    /** @brief Indicates that the task creation failed. */
-    TaskCreationFailed,
-
-    /** @brief Indicates that a queue creation failed. */
-    QueueCreationFailedError,
-
-    /** @brief Indicates that the serialport instance failed to start. */
-    SerialportStartTimeoutError,
-
-   /** @brief Indicates that the serialport task failed to start. */
-    TaskStartFailedError,
-
-    /** @brief Indicates that the serialport was attempted to be initalized when it already was. */
-    AlreadyInitializedError,
-
-    /** @brief Indicates that the task creation failed. */
-    TaskCreationFailedError,
-
-};
 
 /**
  * @brief Defines the end line char so that a new line can be added to the stream easier.
@@ -103,7 +74,7 @@ struct StringQueueItem
  * This implementation ensures minimal impact on the performance of the application while 
  * providing robust debugging capabilities.
  */
-class DebugSerialTask : public StaticTask<DebugSerialTaskConfig::stackSize>
+class DebugSerialTask : public SerialportTask<DebugSerialTaskConfig::stackSize>
 {
 
 public:
@@ -111,7 +82,7 @@ public:
     /**
      * @ The DebugSerial Constructor
      */
-    DebugSerialTask() : StaticTask(){};
+    DebugSerialTask() : SerialportTask(){};
 
     /**
      * @brief Overrides the << operator to add values to the FreeRTOS queue.
@@ -155,11 +126,11 @@ public:
     }
 
     /**
-     * @brief Initializes the debug serial task.
+     * @brief Attempts to initializes the debug serialport task.
      * 
      * @remarks
-     *  During initialization the debug serial task will be created,
-     *  queue for transmitting data will be created, and the debug serial port
+     *  During initialization the serialport task will be created,
+     *  queue for receive/transmitting data will be created, and the serialport
      *  will start.
      * 
      *  Result of each of these operations are tracked and will return with a
@@ -168,22 +139,26 @@ public:
      *  When creating the task it will block until the notification that
      *  the initialization is complete.
      * 
-     *  @retval DebugSerialResult::Success,
-     *   If the operation was successful.
-     *  @retval DebugSerialResult::TaskCreationFailed
-     *   If the task creation failed.
-     *  @retval DebugSerialResult::QueueCreationFailedError
-     *   If the receive queue creation failed.
-     *  @retval DebugSerialResult::SerialportStartTimeoutError
-     *   If the serialport instance was unable to start before timing out.
-     *  @retval DebugSerialResult::TaskStartFailedError
-     *   If the serialport task failed to start and operation timed out.
+     *  Overriden to initialize the stream string queue that it used when debugging
+     *  messages.
+     * 
+     * @retval SerialportResult::Success,
+     *  If the operation was successful.
+     * @retval SerialportResult::TaskCreationFailed
+     *  If the task creation failed.
+     * @retval SerialportResult::QueueCreationFailedError
+     *  If the receive queue creation failed.
+     * @retval SerialportResult::SerialportStartTimeoutError
+     *  If the serialport instance was unable to start before timing out.
+     * @retval SerialportResult::TaskStartFailedError
+     *  If the serialport task failed to start and operation timed out.
+     * @retval SerialportResult::AlreadyInitializedError
+     *  If the serialport was already initialized.
      */
-    DebugSerialTaskResult init(
+    SerialportResult init(
         UBaseType_t taskPriority,
         const char * const taskName,
-        const uint32_t baudrate
-    );
+        const SerialportInstanceConfig instanceConfig) override;
 
 private:
 
@@ -195,19 +170,9 @@ private:
     static void addStringToQueue(const std::string& string);
 
     /**
-     * @brief Holds the handle for the serialport.
-     */
-    static HardwareSerial *m_serialHandle;
-
-    /**
      * @brief Holds the queue that contains to string that will be outputted to the serialport.
      */
     static StaticQueue<DebugSerialTaskConfig::queueMaxEntries, sizeof(StringQueueItem)> m_stringQueue;
-
-    /**
-     * @brief Stores the state of the initialization of the debug serial task.
-     */
-    static bool m_isInitialized;
 
     /**
      * @brief A std::stringstream for storing the output.
@@ -215,13 +180,9 @@ private:
     static std::stringstream ss;
 
     /**
-     * @brief Stores the handle for the task to receive notification.
-     * 
-     * @remarks
-     *  This handle is used in order to syncronize the start-up sequence.
-     *  So that the task will only start running after initialization is complete.
+     * Holds the initialization state.
      */
-    static TaskHandle_t xTaskToNotify;
+    static bool m_isInitialized;
 
 protected:
 
@@ -246,4 +207,4 @@ static DebugSerialTask out;
 
 } // namespace Debug
 
-#endif // DEBUGSERIAL_H_
+#endif // DEBUG_SERIAL_H_

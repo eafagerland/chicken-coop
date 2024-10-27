@@ -1,5 +1,5 @@
 /**
- * @file applicationcore.cpp
+ * @file application_core.cpp
  *
  * @date Okt 13, 2024
  * @author Erik
@@ -8,11 +8,11 @@
  */
 
 // Own header
-#include "inc/applicationcore.h"
+#include "inc/application_core.h"
 
 // Project headers.
-#include "inc/debug/debugutils.h"
-#include "inc/applicationconfig.h"
+#include "inc/debug/debug_utils.h"
+#include "inc/application_config.h"
 
 /**
  * @brief Initializes the core application task.
@@ -51,7 +51,7 @@ TaskResult ApplicationCore::init()
     }
     else
     {
-        Debug::out << "Failed to start STM32 serialport task! Error: " << Serialport::resultCodeToString(result) << Debug::endl;
+        Debug::out << "Failed to start STM32 serialport task! Error: " << Stm32SerialportTask::resultCodeToString(result) << Debug::endl;
         return TaskResult::InitializationError;
     }
 
@@ -64,13 +64,20 @@ TaskResult ApplicationCore::init()
  */
 SerialportResult ApplicationCore::initStm32Serialport()
 {
+    // Holds the configuration for the STM32 serialport.
+    SerialportInstanceConfig stm32Config;
+
+    stm32Config.baudrate = Stm32SerialportTaskConfig::baudRate;
+    stm32Config.handle = &Stm32SerialportTaskConfig::serialHandle;
+    stm32Config.rxPin = Stm32SerialportTaskConfig::rxPin;
+    stm32Config.txPin = Stm32SerialportTaskConfig::txPin;
+
     // Init the serial task.
     // This will create the serialport task and the task will
     // start listening on the serialport.
     return m_stm32Serialport.init(
         Stm32SerialportTaskConfig::taskPriority,
         Stm32SerialportTaskConfig::taskName,
-        &Stm32SerialportTaskConfig::serialHandle,
-        SerialportPinConfig(Stm32SerialportTaskConfig::rxPin, Stm32SerialportTaskConfig::txPin),
-        Stm32SerialportTaskConfig::baudRate);
+        stm32Config);
+
 }

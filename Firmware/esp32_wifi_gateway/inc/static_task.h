@@ -1,5 +1,5 @@
 /**
- * @file statictask.h
+ * @file static_task.h
  *
  * @date Okt 13, 2024
  * @author Erik Fagerland
@@ -10,12 +10,11 @@
 #ifndef STATIC_TASK_H_
 #define STATIC_TASK_H_
 
-// Standard C++ headers.
-#include <stdint.h>
-#include <unordered_map>
-
 // Third party header.
 #include <Arduino.h>
+
+// Standard C++ headers.
+#include <unordered_map>
 
 /**
  * @brief Stores the static queue.
@@ -45,13 +44,16 @@ enum class TaskResult
 {
 
     /** @brief Indicates that the operation was successfull. */
-    Success,
+    Success = 0,
 
     /** @brief Indicates that the task creation failed. */
     TaskCreationError,
 
     /** @brief Indicates that the operation failed due to initialization error. */
     InitializationError,
+
+    /** @brief Indicates that the instanced task handle was nullptr. */
+    TaskHandleNullError,
 
 };
 
@@ -72,11 +74,46 @@ public:
      * @remarks
      *  Initializes the initialized state to false.
      */
-    StaticTask()
-    {
-        m_isInitialized = false;
-    }
+    StaticTask() : m_isInitialized(false){}
 
+    /**
+     * @brief Attempts to delete the task.
+     * 
+     * @remarks
+     *  If the task is not responding as expected the task can be
+     *  tried to be restarted by deleting and calling @ref init again.
+     * 
+     * @retval TaskResult::Success
+     *  If the operation was successful.
+     * @retval TaskResult::InitializationError
+     *  If the serialport was not initialized.
+     * @retval TaskResult::TaskHandleNullError
+     *  If the serialport task handle was NULL.
+     */
+    TaskResult deleteTask()
+    {
+        // Check that the task was initialized shutting it down.
+        if (!m_isInitialized)
+        {
+            return TaskResult::InitializationError;
+        }
+        // Check that the task handle is valid.
+        else if (m_taskHandle == NULL)
+        {
+            return TaskResult::TaskHandleNullError;
+        }
+
+        // Delete the task.
+        vTaskDelete(m_taskHandle);
+
+        // Clear the Stack and TCB memory.
+        clearMemory();
+
+        // Reset the init flag.
+        m_isInitialized = false;
+
+        return TaskResult::Success;
+    }
 
 protected:
 
@@ -121,14 +158,6 @@ protected:
         }
     }
 
-    /** 
-     * @brief Abstract task worker function to be overriden by derrived class. 
-     * 
-     * @remarks
-     *  This is the tasks worker function where it will perform its work. i.e infinite loop.
-    */
-    virtual void run() = 0;
-
     /** @brief Stores the initialization flag for the task. */
     bool m_isInitialized;
 
@@ -143,6 +172,39 @@ protected:
         memset(xStack, 0, sizeof(xStack));
         memset(&xTaskBuffer, 0, sizeof(xTaskBuffer));
     }
+
+    /**
+     * @brief Converts the result code into a string.
+     * 
+     * @remarks
+     *  Uses 'unordered_map' to create a hash table of the different result codes.
+     * 
+     * @param[in] code The code to be converted into a string.
+     * 
+     * @returns
+     *  The string that best matches the provided code.
+     */
+    const char resultCodeToString(const TaskResult code)
+    {
+        static const std::unordered_map<TaskResult, const char*> resultMap = 
+        {
+            { TaskResult::Success, "The static task operation was successful!" },
+            { TaskResult::TaskCreationError, "The static task failed to be created!" },
+            { TaskResult::InitializationError, "The static task operation failed due to an initialization error!" },
+            { TaskResult::TaskHandleNullError, "The static task operation failed because the instanced task handler was nullptr!"}
+        };
+
+        auto it = resultMap.find(code);
+        return it != resultMap.end() ? it->second : "Serialport operation resulted in an unknown result code!";
+    }
+
+    /** 
+     * @brief Abstract task worker function to be overriden by derrived class. 
+     * 
+     * @remarks
+     *  This is the tasks worker function where it will perform its work. i.e infinite loop.
+    */
+    virtual void run() = 0;
 
 private:
 
@@ -163,8 +225,8 @@ private:
             return;
         }
 
-        // Start the task.
-        task->run();
+    // Start the task.
+    task->run();
     }
 
     /** @brief Structure that will hold the TCB of the task being created. */
@@ -172,32 +234,6 @@ private:
 
     /** @brief Holds the buffer for the stack being created. */
     StackType_t xStack[StackSize];
-
-public:
-
-    /**
-     * @brief Converts the result code into a string.
-     * 
-     * @remarks
-     *  Uses 'unordered_map' to create a hash table of the different result codes.
-     * 
-     * @param[in] code The code to be converted into a string.
-     * 
-     * @returns
-     *  The string that best matches the provided code.
-     */
-    static const char *resultCodeToString(const TaskResult code)
-    {
-        static const std::unordered_map<TaskResult, const char*> resultMap = 
-        {
-            { TaskResult::Success, "The static task operation was successful!" },
-            { TaskResult::TaskCreationError, "The static task failed to be created!" },
-            { TaskResult::InitializationError, "The static task operation failed due to a initialization error!" }
-        };
-
-        auto it = resultMap.find(code);
-        return it != resultMap.end() ? it->second : "Serialport operation resulted in an unknown result code!";
-    }
 };
 
 #endif // STATIC_TASK_H_
