@@ -39,6 +39,7 @@
             "defines": [
                 "ARDUINO",
                 "ARDUINO_AVR_UNO",
+                "__cplusplus"
             ],
             "compilerPath": "C:/Users/Erik/AppData/Local/arduino15/packages/esp32/tools/esp-rv32/2405/bin/riscv32-esp-elf-g++.exe",
             "cStandard": "c11",

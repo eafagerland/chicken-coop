@@ -12,6 +12,7 @@
 
 // Project headers.
 #include "inc/debug/debug_utils.h"
+#include "inc/devices/stm32/esp_stm_comm_definitions.h"
 
 /**
  * @brief Overriden task worker function.

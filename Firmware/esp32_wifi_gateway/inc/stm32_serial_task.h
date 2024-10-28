@@ -17,7 +17,7 @@
 /**
  * @brief Task for handling the communication with the STM32 MCU.
  */
-class Stm32SerialportTask : public SerialportTask<Stm32SerialportTaskConfig::stackSize>
+class Stm32SerialportTask : public SerialportTask
 {
 
 public:
@@ -25,7 +25,7 @@ public:
     /**
      * @brief Stm32SerialPort Constructor
      */
-    Stm32SerialportTask() : SerialportTask(){};
+    Stm32SerialportTask() : SerialportTask(m_stack, Stm32SerialportTaskConfig::stackSize){};
 
 protected:
 
@@ -41,6 +41,13 @@ protected:
      *  be handled by other tasks.
      */
     void run() override;
+
+private:
+
+    /**
+     * @brief Holds the stack for the task.
+     */
+    StackType_t m_stack[Stm32SerialportTaskConfig::stackSize];
 };
 
 #endif // STM32_SERIAL_TASK_H_

@@ -30,9 +30,16 @@
 TaskResult ApplicationCore::init()
 {
 
+    // Holds the result of the operations.
+    SerialportResult result;
+
 // Initialize the debug serial task if current build is a DEBUG build.
 #ifdef DEBUG
-    if (initDebug())
+
+    // Attempt to initialize the debug port.
+    result = initDebug();
+
+    if (result == SerialportResult::Success)
     {
         Debug::out << "Successfully started debug task!" << Debug::endl;
     }
@@ -43,8 +50,9 @@ TaskResult ApplicationCore::init()
     }
 #endif
 
-    // Initialize the STM32 serialport.
-    SerialportResult result = initStm32Serialport();
+    // Attempt to initialize the STM32 serialport.
+    result = initStm32Serialport();
+
     if (result == SerialportResult::Success)
     {
         Debug::out << "Successfully started STM32 serialport!" << Debug::endl;
@@ -55,7 +63,7 @@ TaskResult ApplicationCore::init()
         return TaskResult::InitializationError;
     }
 
-    Debug::out << "Application Core started successfully!";
+    Debug::out << "Application Core started successfully!" << Debug::endl;
 
     // All tasks were created successfully.
     return TaskResult::Success;

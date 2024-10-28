@@ -59,10 +59,7 @@ enum class TaskResult
 
 /**
  * @brief Base abstract class for static FreeRTOS tasks.
- * 
- * @tparam StackSize The amount of bytes to allocate for the stack size of the task.
  */
-template<size_t StackSize>
 class StaticTask
 {
 
@@ -74,7 +71,24 @@ public:
      * @remarks
      *  Initializes the initialized state to false.
      */
-    StaticTask() : m_isInitialized(false){}
+    StaticTask(StackType_t *stackPointer, const uint32_t stackSize) : 
+        m_isInitialized(false),
+        m_stack(stackPointer),
+        m_stackSize(stackSize) {}
+
+    /**
+     * @brief Destructor of the StaticTask task.
+     * 
+     * @remarks
+     *  Deletes the task and clears the memory.
+     */
+    ~StaticTask()
+    {
+        // Delete the task.
+        deleteTask();
+        // Clear memory.
+        clearMemory();
+    }
 
     /**
      * @brief Attempts to delete the task.
@@ -90,30 +104,7 @@ public:
      * @retval TaskResult::TaskHandleNullError
      *  If the serialport task handle was NULL.
      */
-    TaskResult deleteTask()
-    {
-        // Check that the task was initialized shutting it down.
-        if (!m_isInitialized)
-        {
-            return TaskResult::InitializationError;
-        }
-        // Check that the task handle is valid.
-        else if (m_taskHandle == NULL)
-        {
-            return TaskResult::TaskHandleNullError;
-        }
-
-        // Delete the task.
-        vTaskDelete(m_taskHandle);
-
-        // Clear the Stack and TCB memory.
-        clearMemory();
-
-        // Reset the init flag.
-        m_isInitialized = false;
-
-        return TaskResult::Success;
-    }
+    TaskResult deleteTask();
 
 protected:
 
@@ -128,35 +119,7 @@ protected:
      * @retval TaskResult::TaskCreationError
      *  If the task creation failed.
      */
-    TaskResult createTask(UBaseType_t priority, const char * const name)
-    {
-        // Initialize the init flag.
-        m_isInitialized = false;
-
-        // Initialize the task handle.
-        m_taskHandle = NULL;
-
-        // Attempt to create the core task.
-        m_taskHandle = xTaskCreateStatic(
-            taskInit,       // The task function.
-            name,           // The task name.
-            StackSize,      // The stack size of the task.
-            this,           // pvParameters, "this" is passed so that it can call its run() function.
-            1,              // The priority of the task.
-            xStack,         // Pointer to the stack buffer.
-            &xTaskBuffer    // Task buffer. 
-        );
-
-        // Return error if unable to create task.
-        if (m_taskHandle == NULL)
-        {
-            return TaskResult::TaskCreationError;
-        }
-        else
-        {
-            return TaskResult::Success;
-        }
-    }
+    TaskResult createTask(UBaseType_t priority, const char * const name);
 
     /** @brief Stores the initialization flag for the task. */
     bool m_isInitialized;
@@ -167,11 +130,7 @@ protected:
     /**
     * @brief Clears the stack and TCB memory bufers.
     */
-    void clearMemory()
-    {
-        memset(xStack, 0, sizeof(xStack));
-        memset(&xTaskBuffer, 0, sizeof(xTaskBuffer));
-    }
+    void clearMemory();
 
     /**
      * @brief Converts the result code into a string.
@@ -184,19 +143,7 @@ protected:
      * @returns
      *  The string that best matches the provided code.
      */
-    const char resultCodeToString(const TaskResult code)
-    {
-        static const std::unordered_map<TaskResult, const char*> resultMap = 
-        {
-            { TaskResult::Success, "The static task operation was successful!" },
-            { TaskResult::TaskCreationError, "The static task failed to be created!" },
-            { TaskResult::InitializationError, "The static task operation failed due to an initialization error!" },
-            { TaskResult::TaskHandleNullError, "The static task operation failed because the instanced task handler was nullptr!"}
-        };
-
-        auto it = resultMap.find(code);
-        return it != resultMap.end() ? it->second : "Serialport operation resulted in an unknown result code!";
-    }
+    static const char *resultCodeToString(const TaskResult code);
 
     /** 
      * @brief Abstract task worker function to be overriden by derrived class. 
@@ -213,27 +160,16 @@ private:
      * 
      * @param[in] pvParameters "this" pointer is passed for calling run().
      */
-    static void taskInit(void *pvParameters)
-    {
-        // Cast the given parameter to StaticTask object.
-        StaticTask *task = static_cast<StaticTask<StackSize>*>(pvParameters);
-
-        if (task == nullptr)
-        {
-            // Failed to retreive the pointer for the task,
-            // and cannot start the task.
-            return;
-        }
-
-    // Start the task.
-    task->run();
-    }
+    static void taskInit(void *pvParameters);
 
     /** @brief Structure that will hold the TCB of the task being created. */
-    StaticTask_t xTaskBuffer;
+    StaticTask_t m_taskBuffer;
 
-    /** @brief Holds the buffer for the stack being created. */
-    StackType_t xStack[StackSize];
+    /** @brief Holds the pointer to the buffer for the stack being created. */
+    StackType_t *m_stack;
+
+    /** @brief Stores the size of the stack in bytes. */
+    uint32_t m_stackSize;
 };
 
 #endif // STATIC_TASK_H_

@@ -24,9 +24,6 @@
 #ifndef DEBUG_SERIAL_H_
 #define DEBUG_SERIAL_H_
 
-// Uncomment the following line for debug mode (comment for release).
-#define DEBUG
-
 // Standard C++ headers.
 #include <iostream>
 #include <sstream>
@@ -74,7 +71,7 @@ struct StringQueueItem
  * This implementation ensures minimal impact on the performance of the application while 
  * providing robust debugging capabilities.
  */
-class DebugSerialTask : public SerialportTask<DebugSerialTaskConfig::stackSize>
+class DebugSerialTask : public SerialportTask
 {
 
 public:
@@ -82,7 +79,7 @@ public:
     /**
      * @ The DebugSerial Constructor
      */
-    DebugSerialTask() : SerialportTask(){};
+    DebugSerialTask() : SerialportTask(m_stack, DebugSerialTaskConfig::stackSize){};
 
     /**
      * @brief Overrides the << operator to add values to the FreeRTOS queue.
@@ -180,9 +177,14 @@ private:
     static std::stringstream ss;
 
     /**
-     * Holds the initialization state.
+     * @brief Holds the initialization state.
      */
     static bool m_isInitialized;
+
+    /**
+     * @brief Holds the stack for the task.
+     */
+    StackType_t m_stack[DebugSerialTaskConfig::stackSize];
 
 protected:
 
