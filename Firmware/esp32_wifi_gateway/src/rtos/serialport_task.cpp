@@ -1,5 +1,8 @@
 // Own header.
-#include "inc/serialport_task.h"
+#include "inc/rtos/serialport_task.h"
+
+// Standard C++ headers.
+#include <unordered_map>
 
 /**
  * @brief Attempts to initializes the serialport task.

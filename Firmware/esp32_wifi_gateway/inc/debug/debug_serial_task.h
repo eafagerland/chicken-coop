@@ -29,7 +29,7 @@
 #include <sstream>
 
 // Project headers.
-#include "inc/serialport_task.h"
+#include "inc/rtos/serialport_task.h"
 #include "inc/Debug/debug_config.h"
 
 // Third party header.

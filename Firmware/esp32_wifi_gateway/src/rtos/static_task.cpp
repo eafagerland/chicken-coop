@@ -1,4 +1,3 @@
-
 /**
  * @file static_task.h
  *
@@ -6,10 +5,20 @@
  * @author Erik Fagerland
  * 
  * @brief Abstract base class for static tasks.
+ * 
+ * @remarks
+ *  Creates a static FreeRTOS task providing the stack pointer and size in constructor.
+ * 
+ *  The @ref run() function must be overriden in derrived tasks where work will be performed.
+ *  Calling @ref createTask() from derrived task will attempt to create the task, if successful the
+ *  @ref run() function will start.
  */
 
 // Own header.
-#include "inc/static_task.h"
+#include "inc/rtos/static_task.h"
+
+// Standard C++ headers.
+#include <unordered_map>
 
 /**
  * @brief Creates the task.
@@ -24,13 +33,16 @@
  */
 TaskResult StaticTask::createTask(UBaseType_t priority, const char *const name)
 {
-    // Initialize the init flag.
-    m_isInitialized = false;
+    // Check if creating task is called when task is already running.
+    if (m_taskHandle != NULL)
+    {
+        return TaskResult::TaskAlreadyRunning;
+    }
 
     // Initialize the task handle.
     m_taskHandle = NULL;
 
-    // Attempt to create the core task.
+    // Attempt to create the task.
     m_taskHandle = xTaskCreateStatic(
         taskInit,     // The task function.
         name,         // The task name.
@@ -103,6 +115,9 @@ TaskResult StaticTask::deleteTask()
     // Delete the task.
     vTaskDelete(m_taskHandle);
 
+    // Reset the task handle.
+    m_taskHandle = NULL;
+
     // Clear the Stack and TCB memory.
     clearMemory();
 
@@ -139,7 +154,8 @@ const char *StaticTask::resultCodeToString(const TaskResult code)
             {TaskResult::Success, "The static task operation was successful!"},
             {TaskResult::TaskCreationError, "The static task failed to be created!"},
             {TaskResult::InitializationError, "The static task operation failed due to an initialization error!"},
-            {TaskResult::TaskHandleNullError, "The static task operation failed because the instanced task handler was nullptr!"}
+            {TaskResult::TaskHandleNullError, "The static task operation failed because the instanced task handler was nullptr!"},
+            {TaskResult::TaskAlreadyRunning, "The static task operation failed beacuse the task was already running!"}
         };
 
     auto it = resultMap.find(code);

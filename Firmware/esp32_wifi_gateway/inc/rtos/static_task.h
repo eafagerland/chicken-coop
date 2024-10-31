@@ -5,16 +5,20 @@
  * @author Erik Fagerland
  * 
  * @brief Abstract base class for static tasks.
+ * 
+ * @remarks
+ *  Creates a static FreeRTOS task providing the stack pointer and size in constructor.
+ * 
+ *  The @ref run() function must be overriden in derrived tasks where work will be performed.
+ *  Calling @ref createTask() from derrived task will attempt to create the task, if successful the
+ *  @ref run() function will start.
  */
 
 #ifndef STATIC_TASK_H_
 #define STATIC_TASK_H_
 
 // Third party header.
-#include <Arduino.h>
-
-// Standard C++ headers.
-#include <unordered_map>
+#include <Arduino.h> // For FreeRTOS definitions.
 
 /**
  * @brief Stores the static queue.
@@ -55,6 +59,9 @@ enum class TaskResult
     /** @brief Indicates that the instanced task handle was nullptr. */
     TaskHandleNullError,
 
+    /** @brief Indicates that the operation failed due to the task already running. */
+    TaskAlreadyRunning,
+
 };
 
 /**
@@ -69,7 +76,7 @@ public:
      * @brief The StaticTask constructor.
      * 
      * @remarks
-     *  Initializes the initialized state to false.
+     *  Initializes the initialized state to false, the stack pointer and the stack size.
      */
     StaticTask(StackType_t *stackPointer, const uint32_t stackSize) : 
         m_isInitialized(false),
@@ -121,12 +128,6 @@ protected:
      */
     TaskResult createTask(UBaseType_t priority, const char * const name);
 
-    /** @brief Stores the initialization flag for the task. */
-    bool m_isInitialized;
-
-    /** @brief Stores the task handle for the task. */
-    TaskHandle_t m_taskHandle;
-
     /**
     * @brief Clears the stack and TCB memory bufers.
     */
@@ -152,6 +153,12 @@ protected:
      *  This is the tasks worker function where it will perform its work. i.e infinite loop.
     */
     virtual void run() = 0;
+
+    /** @brief Stores the initialization state for the task. */
+    bool m_isInitialized;
+
+    /** @brief Stores the task handle for the task. */
+    TaskHandle_t m_taskHandle;
 
 private:
 

@@ -14,7 +14,7 @@
 #define SERIALPORT_TASK_H_
 
 // Project headers.
-#include "inc/static_task.h"
+#include "inc/rtos/static_task.h"
 
 /**
  * @brief Holds the configuration of the serialport task.

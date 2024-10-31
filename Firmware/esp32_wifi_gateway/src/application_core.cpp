@@ -59,7 +59,7 @@ TaskResult ApplicationCore::init()
     }
     else
     {
-        Debug::out << "Failed to start STM32 serialport task! Error: " << Stm32SerialportTask::resultCodeToString(result) << Debug::endl;
+        Debug::out << "Failed to start STM32 serialport task! Error: " << SerialportTask::resultCodeToString(result) << Debug::endl;
         return TaskResult::InitializationError;
     }
 
@@ -81,6 +81,9 @@ SerialportResult ApplicationCore::initStm32Serialport()
     stm32Config.handle = &Stm32SerialportTaskConfig::serialHandle;
     stm32Config.rxPin = Stm32SerialportTaskConfig::rxPin;
     stm32Config.txPin = Stm32SerialportTaskConfig::txPin;
+
+    // Set the wifi handle.
+    m_stm32Serialport.setWifiHandler(&m_wifi);
 
     // Init the serial task.
     // This will create the serialport task and the task will

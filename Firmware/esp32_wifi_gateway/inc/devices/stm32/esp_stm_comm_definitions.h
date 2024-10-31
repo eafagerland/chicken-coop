@@ -7,8 +7,19 @@
  * @brief Contains data definitions for the communication between the ESP32 and STM32.
  * 
  * @remarks
- *  Structs and enums contains both C and C++ style declarations with use of macros.
- *  This is so they can be used for both C and C++ compilers.
+ *  
+ *  Data from the STM32 will in the following structure:
+ * 
+ *  [0] - First sync byte.
+ *  [1] - Second sync byte.
+ *  [2] - Payload length MSB
+ *  [3] - Payload length LSB
+ *  [4] - Start of payload.
+ *  [4 + payload length] - Checksum (calculated from payload.).
+ * 
+ *  The payload will consist of multiple messages. Each message will be defined with a
+ *  message identifier and a fixed size for each message.
+ * 
  */
 
 #ifndef ESP_STM_COMM_DEFINITIONS_H_
@@ -17,40 +28,55 @@
 // Standard C++ headers.
 #include <stdint.h>
 
-#ifdef __cplusplus
-/** @brief Represents the different status during stm32/esp32 serial transmission. */
-enum class Stm32SerialDataStatus : uint8_t
-#else
-typedef enum stm32_serial_data_status
-#endif
+/** @brief Defines the first sync byte. This should always be the first byte in a esp/stm transmission. */
+constexpr auto ESP_STM_FIRST_SYNC_BYTE = 0xF0;
+
+/** @brief Defines the second sync byte. This should always be the second byte in a esp/stm transmission. */
+constexpr auto ESP_STM_SECOND_SYNC_BYTE = 0xFE;
+
+/** 
+ * @brief Represents the different outcomes of the Stm32 serial operations. 
+ * 
+ * @remarks
+ *  The status code will be transmitted back to the STM32 after proccessing the received message.
+ *  This is so the STM32 can handle this with retransmitting message or debugging purposes. 
+ */
+enum class Stm32SerialResult
 {
 
-    /** @brief Indicates that the operation was success. */
-    Success = 0x20,
+    /** @brief Indicates that the operation was successful. */
+    Success = 0,
 
-    /** @brief Indicates that a invalid command was recieved. */
-    InvalidCommandReceivedError,
+    /** @brief Indicates that the received packet was not the size that was expected. */
+    ReceivedPacketSizeError,
 
-    /** @brief Indicates that there was a data overflow. */
-    PayloadOverflowError,
+    /** @brief Indicates that the sync bytes in received packet was invalid. */
+    SyncByteError,
 
-    /** @brief Indicates that there was aa checksum error. */
+    /** @brief Indicates that the received packet had a checksum error. */
     ChecksumError,
 
-#ifdef __cplusplus
+    /** @brief Indicates that the payload was empty. */
+    PayloadEmptyError,
+
+    /** @brief Indicates that the serial write operation failed. */
+    WriteFailedError,
+
+    /** @brief Indicates the incorrect number of bytes was transmitted on the serialport. */
+    WriteSizeIncorrectError,
+
+    /** @brief Indicates that the Wifi handler was nullptr. */
+    WifiHandlerNullptrError,
+
+    /** @brief Indicates that adding data to the transmit queue failed. */
+    SendDataTransmitQueueError,
+
 };
-#else
-} Stm32SerialDataStatus_t;
-#endif
 
 /**
- * @brief Represents the data packet structure for communicating with the Stm32.
+ * @brief Represents the data packet structure for transmitted by the STM32 to the ESP32.
  */
-#ifdef __cplusplus
 struct Stm32SerialDataPacket
-#else
-typedef struct stm32_serial_data_packet
-#endif
 {
 
     /** @brief A static sync byte to determine start of message. */
@@ -59,25 +85,20 @@ typedef struct stm32_serial_data_packet
     /** @brief A static sync byte to determine start of message. */
     uint8_t secondSyncByte;
 
-    /** @brief Holds the status of the transmission. */
-    Stm32SerialDataStatus status;
-
-    /** @brief The current command for identifying the packet. */
-    uint8_t command;
-
-    /** @brief Holds the length of the payload. */
+    /** @brief Holds the length in bytes of the payload. */
     uint16_t payloadLength;
 
-    /** @brief The payload containing the data. */
+    /** @brief Holds the pointer to the payload data. 
+     * 
+     * @remarks
+     *  Payload may consist of many messages, first byte in payload will be the 
+     *  MID (message identifier).
+    */
     uint8_t *payload;
 
     /** @brief A 1byte checksum for the packet (sum-of-bytes). */
     uint8_t crc;
 
-#ifdef __cplusplus
 };
-#else
-} Stm32SerialDataPacket_t;
-#endif
 
 #endif // ESP_STM_COMM_DEFINITIONS_H_
