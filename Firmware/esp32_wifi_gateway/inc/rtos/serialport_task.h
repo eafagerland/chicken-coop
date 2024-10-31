@@ -1,8 +1,20 @@
+/**
+ * @file serialport_task.h
+ *
+ * @date Okt 26, 2024
+ * @author Erik Fagerland
+ * 
+ * @brief A Class for implementing a serialport RTOS task.
+ * 
+ * @remarks
+ *  
+ */
+
 #ifndef SERIALPORT_TASK_H_
 #define SERIALPORT_TASK_H_
 
 // Project headers.
-#include "inc/static_task.h"
+#include "inc/rtos/static_task.h"
 
 /**
  * @brief Holds the configuration of the serialport task.
@@ -181,8 +193,7 @@ struct SerialportInstanceConfig
 /**
  * @brief Static Serialport task class.
  */
-template <size_t StackSize>
-class SerialportTask : public StaticTask<StackSize>
+class SerialportTask : public StaticTask
 {
 
 public:
@@ -190,7 +201,7 @@ public:
     /**
      * @brief The SerialportTask constructor.
      */
-    SerialportTask() : StaticTask<StackSize>(){}
+    SerialportTask(StackType_t *stackPointer, const uint32_t stackSize) : StaticTask(stackPointer, stackSize){}
 
     /**
      * @brief Attempts to initializes the serialport task.
@@ -224,83 +235,7 @@ public:
     virtual SerialportResult init(
         UBaseType_t taskPriority,
         const char * const taskName,
-        const SerialportInstanceConfig instanceConfig)
-    {
-        // Prevent the initialization to be run several times.
-        if (this->m_isInitialized)
-        {
-            return SerialportResult::AlreadyInitializedError;
-        }
-
-        // Store the serialport configuration.
-        m_instanceConfig = instanceConfig;
-
-        // Store the result for the operation.
-        TaskResult taskResult;
-
-        // Attempt to create the serialport task and return its status.
-        taskResult = this->createTask(taskPriority, taskName);
-
-        // Check if the task was created successfully.
-        if (taskResult != TaskResult::Success)
-        {    
-            return SerialportResult::TaskCreationFailedError;
-        }
-
-        // Create the receive queue.
-        m_receiveQueue.handle = xQueueCreateStatic(
-            SerialportTaskConfig::queueMaxEntries,
-            sizeof(SerialQueueData),
-            m_receiveQueue.storage,
-            &m_receiveQueue.buffer);
-    
-        // Check if the queue creation was successfull.
-        if (m_receiveQueue.handle == NULL)
-        {
-            return SerialportResult::QueueCreationFailedError;
-        }
-
-        // Create the transmit queue.
-        m_transmitQueue.handle = xQueueCreateStatic(
-            SerialportTaskConfig::queueMaxEntries,
-            sizeof(SerialQueueData),
-            m_receiveQueue.storage,
-            &m_receiveQueue.buffer);
-    
-        // Check if the queue creation was successfull.
-        if (m_receiveQueue.handle == NULL)
-        {
-            return SerialportResult::QueueCreationFailedError;
-        }
-
-        // Get the current tick when serial is started.
-        TickType_t timeoutTickCount = xTaskGetTickCount();
-
-        // Start the serialport instance.
-        m_instanceConfig.handle->begin(m_instanceConfig.baudrate, SERIAL_8N1, m_instanceConfig.rxPin, m_instanceConfig.txPin);
-
-        // Wait for serialport to start.
-        while(!m_instanceConfig.handle)
-        {
-            // If serialport doesnt start before timing out it will return error.
-            if (xTaskGetTickCount() - timeoutTickCount > SerialportTaskConfig::waitForSerialportStartTimeout)
-            {
-                return SerialportResult::SerialportStartTimeoutError;
-            }
-        }
-
-        // Init was successful.
-        this->m_isInitialized = true;
-
-        // Set the tick count to current time, for verififying that task is running.
-        timeoutTickCount = xTaskGetTickCount();
-
-        // Notify the task that the initialization was succesfull.
-        xTaskNotify(this->m_taskHandle, SerialportTaskConfig::initNotificationBit, eSetBits);
-
-        // Return the result of the serialport initialization.
-        return SerialportResult::Success;
-    }
+        const SerialportInstanceConfig instanceConfig);
 
     /**
      * @brief Proccesses the receive or transmit queue.
@@ -327,57 +262,7 @@ public:
      * @retval SerialportResult::InvalidQueueTypeError
      *  If the provided queue type was invalid.
      */
-    SerialportResult processQueueItem(SerialQueueData *data, const SerialQueueType queueType, const uint32_t timeout)
-    {
-        // Sanity check the data input.
-        if (data == nullptr)
-        {
-            return SerialportResult::ArgumentNullError;
-        }
-
-        // Check that the serialport is initialized.
-        if (!this->m_isInitialized)
-        {
-            return SerialportResult::InitializationError;
-        }
-
-        // Store the result of the operation, 
-        // initialize it to success so it just needs to be set to an error if present.
-        SerialportResult serialResult = SerialportResult::Success;
-
-        // Holds the queue result.
-        BaseType_t queueResult;
-
-        // Process the queue type that was selected.
-        switch (queueType)
-        {
-            case SerialQueueType::Receive:
-            {
-                // Attempt to receive item from queue.
-                queueResult = xQueueReceive(m_receiveQueue.handle, data, timeout);
-                break;
-            }
-            case SerialQueueType::Transmit:
-            {
-                // Attempt to receive item from queue.
-                queueResult = xQueueSend(m_receiveQueue.handle, data, timeout);
-                break;
-            }
-            default:
-            {
-                // The queue type provided did not match any valid queue.
-                serialResult = SerialportResult::InvalidQueueTypeError;
-                break;
-            }
-        }
-
-        if (queueResult != pdTRUE)
-        {
-            serialResult = SerialportResult::ReceiveQueueTimeoutError;
-        }
-
-        return serialResult;
-    }
+    SerialportResult processQueueItem(SerialQueueData *data, const SerialQueueType queueType, const uint32_t timeout);
 
     /**
     * @brief Converts the result code into a string.
@@ -390,31 +275,7 @@ public:
     * @returns
     *  The string that best matches the provided code.
     */
-    static const char* resultCodeToString(const SerialportResult code) 
-    {
-        static const std::unordered_map<SerialportResult, const char*> resultMap = 
-        {
-            { SerialportResult::Success, "The serialport operation was successful!" },
-            { SerialportResult::ReceiveBufferOverflowError, "The serialports receive buffer encountered an overflow!" },
-            { SerialportResult::ReceiveQueueTimeoutError, "The serialports receive queue operation timed out!" },
-            { SerialportResult::ReceiveQueueFullError, "The serialports receive queue was full!" },
-            { SerialportResult::ReadTimeoutError, "The serialport read operation timed out!" },
-            { SerialportResult::ArgumentNullError, "The serialport operation failed due to a nullptr being passed as an argument!" },
-            { SerialportResult::InitializationError, "The serialport operation failed due to not being initialized!" },
-            { SerialportResult::TaskStartFailedError, "The serialport operation failed due starting of task timed out!"},
-            { SerialportResult::AlreadyInitializedError, "The serialport init operation failed because it was already initialzied!"},
-            { SerialportResult::TaskHandleNullError, "The serialport operation failed beacuse the task handle was NULL!"},
-            { SerialportResult::QueueHandleNullError, "The serialport operation failed because the receive queue handle was NULL!"},
-            { SerialportResult::InvalidQueueTypeError, "The serialport operation failed because an invalid queue type was handled!"},
-            { SerialportResult::TransmitQueueTimeoutError, "The serialport transmit queue operation timed out!" },
-            { SerialportResult::WriteOperationFailedError, "The serialport write operation was not able to write all data!"},
-            { SerialportResult::TransmitQueueItemEmptyError, "The serialport write operation failed because queue item was empty!"}
-    };
-
-    auto it = resultMap.find(code);
-    return it != resultMap.end() ? it->second : "Serialport operation resulted in an unknown result code!";
-
-    }
+    static const char* resultCodeToString(const SerialportResult code);
 
 protected:
 
@@ -451,67 +312,7 @@ protected:
      * @retval SerialportResult::ReceiveQueueFullError
      *  If the receive queue was full and read data could not be added.
      */
-    SerialportResult serialRead(uint16_t &bytesRead, const uint32_t timeout)
-    {
-        // Initalize the bytes read output to 0.
-        bytesRead = 0;
-
-        // Holds the buffer for storing the incomming data.
-        uint8_t serialReadBuffer[SerialportTaskConfig::queueItemBufferMaxSize];
-
-        // Holds the number of bytes received.
-        uint32_t serialReadBytes = 0;
-
-        // Holds the start tick of the read operation to keep track of timeout.
-        uint32_t readStartTick = xTaskGetTickCount();
-
-        // Checks if there are data available on the serialport.
-        while (m_instanceConfig.handle->available() > 0)
-        {
-            // Check for timeout
-            uint32_t currentTick = xTaskGetTickCount();
-            if (currentTick - readStartTick > timeout)
-            {
-                return SerialportResult::ReadTimeoutError;
-            }
-
-            // Store the byte into buffer at current index.
-            serialReadBuffer[serialReadBytes] = m_instanceConfig.handle->read();
-
-            // Increment the number of bytes read.
-            serialReadBytes++;
-
-            // Check for overflow.
-            if (serialReadBytes == SerialportTaskConfig::queueItemBufferMaxSize)
-            {
-                return SerialportResult::ReceiveBufferOverflowError;
-            }
-        }
-
-        // Check if there was any data read on the serialport.
-        if (serialReadBytes < 1)
-        {
-            // No data available on serialport.
-            return SerialportResult::Success;
-        }
-
-        // Create data structure of the received string.
-        SerialQueueData receivedData;
-        receivedData.length = serialReadBytes;
-        memcpy(receivedData.buffer, serialReadBuffer, serialReadBytes);
-
-        // Attempt to queue the received data.
-        BaseType_t queueResult = xQueueSend(m_receiveQueue.handle, (void*)&receivedData, pdTICKS_TO_MS(SerialportTaskConfig::receiveQueueTimeout));
-        if (queueResult != pdTRUE)
-        {
-            return SerialportResult::ReceiveQueueFullError;
-        }
-
-        // Set the bytes read output.
-        bytesRead = serialReadBytes;
-
-        return SerialportResult::Success;
-    }
+    SerialportResult serialRead(uint16_t &bytesRead, const uint32_t timeout);
 
     /**
      * @brief Write data on the serialport.
@@ -531,40 +332,7 @@ protected:
      * @retval SerialportResult::WriteOperationFailedError
      *  If the write operation was not able to write all data.
      */
-    SerialportResult serialWrite(uint16_t &bytesTransmitted, const TickType_t timeout)
-    {
-        // Initalize the bytes transmitted output to 0.
-        bytesTransmitted = 0;
-
-        // Holds the data to be received from the transmit queue.
-        SerialQueueData transmitData;
-
-        // Attempt to get the queue item from the queue.
-        BaseType_t queueResult = xQueueReceive(m_transmitQueue.handle, (void*)&transmitData, pdTICKS_TO_MS(timeout));
-
-        if (queueResult != pdTRUE)
-        {
-            return SerialportResult::ReceiveQueueTimeoutError;
-        }
-
-        // Check that there is data in the item received.
-        if (transmitData.length < 1)
-        {
-            return SerialportResult::TransmitQueueItemEmptyError;
-        }
-
-        // Write the data on the serialport and store the number of bytes sent.
-        bytesTransmitted = m_instanceConfig.handle->write(transmitData.buffer, transmitData.length);
-
-        // Check if all butes were transmitted.
-        if (bytesTransmitted != transmitData.length)
-        {
-            SerialportResult::WriteOperationFailedError;
-        }
-
-        // The write operation was successful.
-        return SerialportResult::Success;
-    }
+    SerialportResult serialWrite(uint16_t &bytesTransmitted, const TickType_t timeout);
 
     /**
      * @brief Holds the serialport configuration for this instance.

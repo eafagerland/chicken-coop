@@ -31,7 +31,7 @@
  *  Chicken heads might get chopped while closing doors.
  */
 
-// Third party headers.
+// Project headers.
 #include "inc/application_core.h"
 
 // Declare the application core task.

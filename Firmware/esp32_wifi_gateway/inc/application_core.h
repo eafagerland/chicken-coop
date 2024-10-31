@@ -11,7 +11,8 @@
 #define APPLICATION_CORE_H_
 
 // Project headers.
-#include "inc/stm32_serial_task.h"
+#include "inc/rtos/stm32_serial_task.h"
+#include "inc/rtos/wifi_task.h"
 
 /**
  * @brief Main Application task.
@@ -44,12 +45,19 @@ private:
     SerialportResult initStm32Serialport();
 
     /**
-     * @brief
-     *  Holds the serialport that bridges the serial communication between 
+     * @brief The STM32 serialport instance.
+     * 
+     * @remarks
+     *  Bridges the serial communication between 
      *  the ESP32 and the STM32.
      *  This runs in its own thread. 
      */
     Stm32SerialportTask m_stm32Serialport;
+
+    /**
+     * @brief The WiFi instance for communicating with the ESP32 and the HMI client.
+     */
+    WifiTask m_wifi;
 };
 
 #endif // APPLICATION_CORE_H_

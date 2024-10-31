@@ -20,11 +20,17 @@
 
 /**
  * @brief Initializes the ESP32 debug port.
+ * 
  */
-static bool initDebug()
+static SerialportResult initDebug()
 {
+
+#ifdef DEBUG
+
     // Holds the configuration of the debug port.
     SerialportInstanceConfig debugTaskConfig;
+
+    // Set the configuration struct.
     debugTaskConfig.baudrate = DebugSerialTaskConfig::baudrate;
     debugTaskConfig.handle = &DebugSerialTaskConfig::serialHandle;
     debugTaskConfig.rxPin = DebugSerialTaskConfig::rxPin;
@@ -33,14 +39,14 @@ static bool initDebug()
     // Attempt to initialize the debug serial task.
     SerialportResult debugResult = Debug::out.init(DebugSerialTaskConfig::taskPriority, DebugSerialTaskConfig::taskName, debugTaskConfig);
     
-    if (debugResult != SerialportResult::Success)
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
+    // Return the result of the operation.
+    return debugResult;
+
+#endif // DEBUG
+
+    // Just return success if the DEBUG preprocessor was not defined.
+    return SerialportResult::Success;
+
 }
 
 #endif // DEBUG_UTILS_H
